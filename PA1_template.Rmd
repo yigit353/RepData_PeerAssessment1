@@ -5,21 +5,174 @@ output:
     keep_md: true
 ---
 
-
 ## Loading and preprocessing the data
 
+Let's start by downloading, unzipping and loading the data from the repository.
 
+```{r, cache=TRUE}
+if (!file.exists("activity.csv")) {
+    download.file(
+        "http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip",
+                  "activity.zip")
+    unzip("activity.zip")
+}
+
+activity <- read.csv(file = "activity.csv")
+```
+
+Check out how the data looks like.
+
+```{r}
+head(activity)
+str(activity)
+```
+
+Copy activity with NA values to **activity.na**:
+
+```{r}
+activity.na <- activity
+```
+
+Let's filter out the NA values.
+
+```{r}
+activity <- subset(activity, !is.na(steps))
+```
+
+Check out how the filtered data looks like.
+
+```{r}
+head(activity)
+str(activity)
+```
 
 ## What is mean total number of steps taken per day?
 
+Total number of steps for each days:
 
+```{r}
+steps.per.day <- tapply(activity$steps, activity$date, sum)
+steps.per.day[is.na(steps.per.day)] <- 0
+steps.per.day
+```
+
+Now visualize it with a histogram:
+
+```{r}
+barplot(steps.per.day, col = "red")
+```
+
+The mean and the median of the total steps per day (different than 
+***mean/median of steps per day***)
+
+```{r}
+mean(steps.per.day)
+median(steps.per.day)
+```
+
+
+> **NOTE: ** Results may vary because total steps with NA per day are taken as 0
+for continuous time series.
 
 ## What is the average daily activity pattern?
 
+First of all take means of steps for each interval across all days.
 
+```{r}
+steps.per.interval <- tapply(activity$steps, activity$interval, mean)
+steps.per.interval
+```
+
+After that get levels of intervals as an array called **Interval**.
+
+```{r}
+Interval <- as.numeric(levels(as.factor(activity$interval)))
+Interval
+```
+
+Finally plot the time series using **base** plot system.
+
+```{r}
+plot(Interval, steps.per.interval, type = "l", ylab = "Number of steps")
+```
+
+Now it's easy to retrieve the interval with the maximum steps:
+
+```{r}
+max.steps <- max(steps.per.interval)
+max.interval <- steps.per.interval[steps.per.interval == max.steps]
+as.numeric(names(max.interval))
+```
+
+The interval with the maximum steps is **835** (i.e. 8:35-8:40)
 
 ## Imputing missing values
 
+Let's start by counting rows with *NA* values:
+
+```{r}
+sum(is.na(activity.na$steps))
+```
+
+In order to impute we use the median strategy mixed with interpolation. 
+1. If there is a missing value between two existing values take the mean of both values
+2. Otherwise impute with that hour's mean
+
+```{r}
+activity.imputed <- activity.na
+activity.imputed$steps[1] <- steps.per.interval[1]
+length.activity <- nrow(activity.imputed)
+for (i in 2:length.activity - 1) {
+    if (is.na(activity.imputed$steps[i])) {
+        prev <- activity.imputed$steps[i - 1]; nxt <- activity.imputed$steps[i + 1]
+        activity.imputed$steps[i] <- if (!is.na(prev) && !is.na(nxt)) {
+            (prev + nxt) / 2
+        } else {
+            steps.per.interval[as.numeric(names(steps.per.interval)) == 
+                                   activity.imputed$interval[i]]
+        }
+    }
+}
+activity.imputed$steps[length.activity] <- steps.per.interval[
+    as.numeric(names(steps.per.interval)) == activity.imputed$interval[length.activity]]
+```
+
+Now check out the new data:
+
+```{r}
+head(activity.imputed)
+tail(activity.imputed)
+str(activity.imputed)
+```
+
+Check out how does it look like in comparison with the original dataset:
+
+```{r}
+steps.per.day.imputed <- tapply(activity.imputed$steps, activity.imputed$date, sum)
+steps.per.day.imputed[is.na(steps.per.day)] <- 0
+par(mfrow = c(2, 1))
+barplot(steps.per.day, col = "red", main = "Without Imputing")
+barplot(steps.per.day.imputed, col = "blue", main = "Imputed")
+```
+
+Now calculate the new mean and median and compare it to the original:
+
+```{r results="asis"}
+library(xtable)
+dt.original <- data.frame(mean = mean(steps.per.day), 
+                          median = median(steps.per.day))
+dt.imputed <- data.frame(mean = mean(steps.per.day.imputed), 
+                         median = median(steps.per.day.imputed))
+dt.table <- rbind(dt.original, dt.imputed)
+row.names(dt.table) <- c("original", "imputed")
+xt <- xtable(dt.table)
+print(xt, type = "html")
+```
+
+
+This table clearly shows that imputing increased both median and mean and 
+also made mean and median closer to each other because of eliminating sudden 
+jumps in data.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
