@@ -428,7 +428,7 @@ print(xt, type = "html")
 ```
 
 <!-- html table generated in R 3.2.1 by xtable 1.7-4 package -->
-<!-- Fri Jul 17 01:59:17 2015 -->
+<!-- Fri Jul 17 23:04:27 2015 -->
 <table border=1>
 <tr> <th>  </th> <th> mean </th> <th> median </th>  </tr>
   <tr> <td align="right"> original </td> <td align="right"> 9354.23 </td> <td align="right"> 10395.00 </td> </tr>
@@ -442,3 +442,51 @@ jumps in data.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+First create the factor variable:
+
+
+```r
+activity.imputed <- transform(activity.imputed, 
+                              date = strptime(date, "%Y-%m-%d"))
+activity.imputed <- transform(activity.imputed, 
+                              weekday = weekdays(date))
+activity.imputed$weekday <- as.factor(sapply(activity.imputed$weekday, function(wd) {
+    if (wd == "Saturday" | wd == "Sunday") "weekend" else "weekday"
+}))
+table(activity.imputed$weekday)
+```
+
+```
+## 
+## weekday weekend 
+##   12960    4608
+```
+
+Now summarize data over interval and weekday type:
+
+
+```r
+steps.per.interval.weekday <- with(activity.imputed, aggregate(steps, 
+                                        list(weekday, interval), mean))
+colnames(steps.per.interval.weekday) <- c("weekday", "interval", "steps")
+head(steps.per.interval.weekday)
+```
+
+```
+##   weekday interval      steps
+## 1 weekday        0 2.25115304
+## 2 weekend        0 0.21462264
+## 3 weekday        5 0.44528302
+## 4 weekend        5 0.04245283
+## 5 weekday       10 0.17316562
+## 6 weekend       10 0.01650943
+```
+
+```r
+library(lattice)
+xyplot(steps ~ interval | weekday, data = steps.per.interval.weekday, 
+       layout = c(1, 2), type = 'l')
+```
+
+![](PA1_template_files/figure-html/unnamed-chunk-19-1.png) 

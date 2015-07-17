@@ -176,3 +176,33 @@ jumps in data.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+First create the factor variable:
+
+```{r}
+activity.imputed <- transform(activity.imputed, 
+                              date = strptime(date, "%Y-%m-%d"))
+activity.imputed <- transform(activity.imputed, 
+                              weekday = weekdays(date))
+activity.imputed$weekday <- as.factor(sapply(activity.imputed$weekday, function(wd) {
+    if (wd == "Saturday" | wd == "Sunday") "weekend" else "weekday"
+}))
+table(activity.imputed$weekday)
+```
+
+Now summarize data over interval and weekday type:
+
+```{r}
+steps.per.interval.weekday <- with(activity.imputed, aggregate(steps, 
+                                        list(weekday, interval), mean))
+colnames(steps.per.interval.weekday) <- c("weekday", "interval", "steps")
+head(steps.per.interval.weekday)
+library(lattice)
+xyplot(steps ~ interval | weekday, data = steps.per.interval.weekday, 
+       layout = c(1, 2), type = 'l')
+```
+
+In the weekdays there are obvious peaks at early morning and evening. This can 
+be due to leaving for work and returning home. At weekends there isn't significant
+movement in the early morning and evening, however an increase in the rest of the
+day. Because one doesn't sit on the office at weekends.
